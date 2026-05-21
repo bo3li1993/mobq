@@ -525,7 +525,7 @@ html,body { background:var(--bg); color:var(--text); font-family:'Tajawal',sans-
 </div>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbwK0eRvEGwVKiSOoQhZq489iL9TndJU9vlDvnm9RGxzvCg4n60Ja8ozhu6t-XqCqBOoIg/exec';
+const API = 'https://script.google.com/macros/s/AKfycby0oW1PO3fmEuwkHuGZHr6r2pFhtw6M3EpM1mkAI8Wd5R-cdMmRF3EG59qhzAgCndO6HQ/exec';
 
 const CLASSES = [
   {id:'6/1',full:'الصف السادس 1',grade:'السادس'},
@@ -555,22 +555,20 @@ function todayStr(){
 function parseDate(r){
   if(!r) return '';
   const s = String(r).trim();
-  // Extract date part directly without timezone issues
-  // Handles: "2026-05-20", "2026/05/20", "2026-05-20T07:00:00.000Z", "20/05/2026"
-  let y,m,d;
-  if(s.includes('T') || (s.includes('-') && s.length > 10)) {
-    // ISO format - just take first 10 chars
-    const part = s.substring(0,10);
-    const p = part.split('-');
-    if(p.length===3 && p[0].length===4){ y=p[0]; m=p[1]; d=p[2]; }
-  } else {
-    const sep = s.includes('/') ? '/' : '-';
-    const p = s.split(sep);
-    if(p[0].length===4){ y=p[0]; m=p[1]; d=p[2]; }
-    else if(p.length===3){ y=p[2]; m=p[1]; d=p[0]; }
+  // Apps Script now sends clean "YYYY/MM/DD" format
+  // But handle all formats just in case
+  if(s.includes('T') || s.includes('Z')) {
+    // Old ISO format - take date part only
+    return s.substring(0,10).replace(/-/g,'/');
   }
-  if(!y||!m||!d) return s.substring(0,10).replace(/-/g,'/');
-  return y+'/'+String(m).padStart(2,'0')+'/'+String(d).padStart(2,'0');
+  const sep = s.includes('/') ? '/' : '-';
+  const p = s.split(sep);
+  if(p.length !== 3) return s.substring(0,10);
+  if(p[0].length === 4) {
+    return p[0]+'/'+p[1].padStart(2,'0')+'/'+p[2].padStart(2,'0');
+  } else {
+    return p[2]+'/'+p[1].padStart(2,'0')+'/'+p[0].padStart(2,'0');
+  }
 }
 
 function sid(clsId,num){

@@ -1208,90 +1208,117 @@ function initEdit(){
   document.getElementById('edit-date').value=`${y}-${m}-${d}`;
 }
 
+// ── EDIT STATE ──
+let editCls='', editDate='', editStuStatus={};
+
 function loadEditData(){
-  const cls=document.getElementById('edit-cls').value;
-  const dateVal=document.getElementById('edit-date').value;
-  const el=document.getElementById('edit-result');
-  if(!cls||!dateVal){ el.innerHTML='<div class="empty">اختر الفصل والتاريخ</div>'; return; }
-  
-  const ds=dateVal.replace(/-/g,'/');
-  const stus=STUDENTS[cls]||[];
-  const clsObj=CLASSES.find(c=>c.id===cls);
-  
-  // Get all records for this class and date
-  const dayRecs=ALL_ATT.filter(r=>parseDate(r[1])===ds && String(r[2]||'').trim()===cls);
-  
+  editCls = document.getElementById('edit-cls').value;
+  const dateVal = document.getElementById('edit-date').value;
+  const el = document.getElementById('edit-result');
+  if(!editCls||!dateVal){ el.innerHTML='<div class="empty">اختر الفصل والتاريخ</div>'; return; }
+  editDate = dateVal.replace(/-/g,'/');
+  const stus = STUDENTS[editCls]||[];
+  const clsObj = CLASSES.find(c=>c.id===editCls);
+  const dayRecs = ALL_ATT.filter(r=>parseDate(r[1])===editDate && String(r[2]||'').trim()===editCls);
   if(!stus.length){ el.innerHTML='<div class="empty">لا توجد بيانات طلاب</div>'; return; }
 
+  // Build status map
+  editStuStatus={};
+  stus.forEach((_,i)=>{
+    const num=i+1;
+    const recs=dayRecs.filter(r=>matchStu(r[4],editCls,num));
+    const isAbs=recs.some(r=>String(r[5]||'').trim()==='غائب');
+    const isLate=recs.some(r=>String(r[5]||'').trim()==='متأخر');
+    editStuStatus[num]=isAbs?'غائب':isLate?'متأخر':'حاضر';
+  });
+
+  // Build HTML
   let rows='';
   stus.forEach((name,i)=>{
     const num=i+1;
-    // Find all records for this student
-    const stuRecs=dayRecs.filter(r=>matchStu(r[4],cls,num));
-    const periods=[];
-    for(let p=1;p<=7;p++){
-      const rec=stuRecs.find(r=>parseInt(r[3])===p);
-      periods.push(rec?String(r[5]||rec[5]).trim():'—');
-    }
-    const isAbs=stuRecs.some(r=>String(r[5]||'').trim()==='غائب');
-    const isLate=stuRecs.some(r=>String(r[5]||'').trim()==='متأخر');
-    
-    rows+=`<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);${isAbs?'background:#fff5f5;margin:0 -4px;padding:10px 4px;':''}">
+    const st=editStuStatus[num];
+    rows+=`<div class="erow" data-num="${num}" style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);background:${st==='غائب'?'#fff5f5':st==='متأخر'?'#fffbeb':''}">
       <span style="color:var(--text3);font-size:12px;min-width:22px">${num}</span>
       <span style="flex:1;font-size:13px;font-weight:600">${name}</span>
       <div style="display:flex;gap:4px">
-        <button onclick="editStu(${num},'${cls}','${ds}','حاضر')" style="padding:5px 8px;border-radius:8px;border:1px solid ${!isAbs&&!isLate?'var(--success)':'var(--border)'};background:${!isAbs&&!isLate?'var(--success-light)':'var(--bg)'};color:${!isAbs&&!isLate?'var(--success)':'var(--text3)'};font-family:'Tajawal',sans-serif;font-size:11px;font-weight:700;cursor:pointer">✓ حاضر</button>
-        <button onclick="editStu(${num},'${cls}','${ds}','غائب')" style="padding:5px 8px;border-radius:8px;border:1px solid ${isAbs?'var(--danger)':'var(--border)'};background:${isAbs?'var(--danger-light)':'var(--bg)'};color:${isAbs?'var(--danger)':'var(--text3)'};font-family:'Tajawal',sans-serif;font-size:11px;font-weight:700;cursor:pointer">✗ غائب</button>
-        <button onclick="editStu(${num},'${cls}','${ds}','متأخر')" style="padding:5px 8px;border-radius:8px;border:1px solid ${isLate?'var(--warn)':'var(--border)'};background:${isLate?'var(--warn-light)':'var(--bg)'};color:${isLate?'var(--warn)':'var(--text3)'};font-family:'Tajawal',sans-serif;font-size:11px;font-weight:700;cursor:pointer">⏰ متأخر</button>
+        <button class="eb" data-num="${num}" data-st="حاضر" style="padding:7px 12px;border-radius:8px;border:2px solid ${st==='حاضر'?'var(--success)':'var(--border)'};background:${st==='حاضر'?'var(--success-light)':'var(--bg)'};color:${st==='حاضر'?'var(--success)':'var(--text3)'};font-family:'Tajawal',sans-serif;font-size:14px;font-weight:900;cursor:pointer">✓</button>
+        <button class="eb" data-num="${num}" data-st="غائب" style="padding:7px 12px;border-radius:8px;border:2px solid ${st==='غائب'?'var(--danger)':'var(--border)'};background:${st==='غائب'?'var(--danger-light)':'var(--bg)'};color:${st==='غائب'?'var(--danger)':'var(--text3)'};font-family:'Tajawal',sans-serif;font-size:14px;font-weight:900;cursor:pointer">✗</button>
+        <button class="eb" data-num="${num}" data-st="متأخر" style="padding:7px 12px;border-radius:8px;border:2px solid ${st==='متأخر'?'var(--warn)':'var(--border)'};background:${st==='متأخر'?'var(--warn-light)':'var(--bg)'};color:${st==='متأخر'?'var(--warn)':'var(--text3)'};font-family:'Tajawal',sans-serif;font-size:14px;font-weight:900;cursor:pointer">⏰</button>
       </div>
     </div>`;
   });
 
   el.innerHTML=`<div style="background:var(--white);border-radius:16px;border:1px solid var(--border);padding:16px;box-shadow:var(--shadow)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">
-      <div style="font-weight:800;font-size:15px">${clsObj?.full||cls}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+      <div style="font-weight:800;font-size:15px">${clsObj?.full||editCls}</div>
       <div style="font-size:12px;color:var(--text2)">${dateVal}</div>
     </div>
-    <div style="font-size:12px;color:var(--text2);background:var(--accent-light);padding:8px 12px;border-radius:10px;margin-bottom:12px">
-      💡 اضغط على الحالة لتغييرها — يتحدث تلقائياً
+    <div style="font-size:12px;color:var(--accent);background:var(--accent-light);padding:8px 12px;border-radius:10px;margin-bottom:12px">
+      💡 اضغط على الزر لتغيير الحالة ثم اضغط حفظ
     </div>
-    ${rows}
+    <div id="edit-rows">${rows}</div>
+    <button id="edit-save-btn" style="width:100%;margin-top:14px;padding:14px;border-radius:12px;background:var(--accent);color:#fff;border:none;font-family:'Tajawal',sans-serif;font-size:15px;font-weight:800;cursor:pointer">💾 حفظ التعديلات</button>
   </div>`;
+
+  // Event delegation - ONE listener for all buttons
+  document.getElementById('edit-rows').addEventListener('click', function(e){
+    const btn = e.target.closest('.eb');
+    if(!btn) return;
+    const num = parseInt(btn.getAttribute('data-num'));
+    const newSt = btn.getAttribute('data-st');
+    editStuStatus[num] = newSt;
+
+    // Update all 3 buttons in this row
+    const row = btn.closest('.erow');
+    row.querySelectorAll('.eb').forEach(b=>{
+      const bSt = b.getAttribute('data-st');
+      const active = bSt===newSt;
+      const c = bSt==='حاضر'?'var(--success)':bSt==='غائب'?'var(--danger)':'var(--warn)';
+      const bg = bSt==='حاضر'?'var(--success-light)':bSt==='غائب'?'var(--danger-light)':'var(--warn-light)';
+      b.style.borderColor = active?c:'var(--border)';
+      b.style.background = active?bg:'var(--bg)';
+      b.style.color = active?c:'var(--text3)';
+    });
+    // Update row background
+    row.style.background = newSt==='غائب'?'#fff5f5':newSt==='متأخر'?'#fffbeb':'';
+  });
+
+  // Save button
+  document.getElementById('edit-save-btn').addEventListener('click', saveEditAll);
 }
 
-async function editStu(num, cls, dateStr, newStatus){
-  const stus=STUDENTS[cls]||[];
-  const name=stus[num-1]||'';
-  const studentId=sid(cls,num);
-  
-  // Delete old records for this student on this date
-  // Then add new one if not "حاضر"
+async function saveEditAll(){
+  const btn = document.getElementById('edit-save-btn');
+  btn.textContent='⏳ جارٍ الحفظ...'; btn.disabled=true;
+
   const records=[];
-  if(newStatus!=='حاضر'){
+  Object.entries(editStuStatus).forEach(([numStr,status])=>{
+    const num=parseInt(numStr);
     records.push({
-      rowId:'E'+Date.now()+Math.random().toString(36).substr(2,4),
-      date:dateStr.replace(/\//g,'-'),
-      classId:cls,
-      periodId:1,
-      studentId:studentId,
-      status:newStatus,
-      attendanceType:newStatus==='غائب'?'بدون عذر':'متأخر',
-      reason:'تعديل',
-      recordedBy:''
+      rowId:'E'+Date.now()+num+Math.random().toString(36).substr(2,3),
+      date:editDate.replace(/\//g,'-'),
+      classId:editCls, periodId:1,
+      studentId:sid(editCls,num), status,
+      attendanceType:status==='غائب'?'بدون عذر':status==='متأخر'?'متأخر':'حاضر',
+      reason:'تعديل', recordedBy:''
     });
-  }
+  });
 
-  // Note: we can only ADD records, not delete
-  // So we add a correction record
-  if(records.length>0){
-    try{
-      await fetch(API,{method:'POST',body:JSON.stringify({records}),headers:{'Content-Type':'text/plain'},redirect:'follow'});
-    }catch(e){ alert('فشل الحفظ'); return; }
+  try{
+    await fetch(API,{method:'POST',body:JSON.stringify({records}),headers:{'Content-Type':'text/plain'},redirect:'follow'});
+    btn.textContent='✅ تم الحفظ!';
+    btn.style.background='var(--success)';
+    setTimeout(()=>{
+      btn.textContent='💾 حفظ التعديلات';
+      btn.style.background='var(--accent)';
+      btn.disabled=false;
+    },2000);
+    loadData();
+  }catch(e){
+    alert('فشل الاتصال');
+    btn.textContent='💾 حفظ التعديلات';
+    btn.disabled=false;
   }
-
-  // Reload and re-render
-  await loadData();
-  loadEditData();
 }
 
 loadData();
